@@ -1,0 +1,211 @@
+
+
+1. Map thread start address → module
+
+Legit thread → inside module
+
+Injected thread → outside module
+
+Use EnumProcessModules or CreateToolhelp32Snapshot (MODULE)
+
+Build:
+
+[module_base, module_end]
+
+Then:
+
+if (thread.startAddress NOT in any module)
+    → suspicious
+    
+    
+2. Detect RWX memory (HIGH PRIORITY)
+
+Add:
+
+if (mbi.Protect & PAGE_EXECUTE_READWRITE)
+
+ RWX = biggest red flag
+
+ 3. Detect "no-module executable memory"
+
+You already check:
+
+mbi.Type == MEM_PRIVATE
+
+Enhance:
+
+EXECUTABLE + NOT MAPPED TO FILE
+LEVEL 2 → Real detection techniques
+
+
+
+🔥 4. Detect PE headers in memory (Manual mapping)
+
+Scan memory for:
+
+'MZ'
+
+If found inside MEM_PRIVATE:
+
+Likely manual mapped DLL
+
+ 5. Detect shellcode patterns
+
+Search for:
+
+0xCC (int3 padding)
+
+NOP sled (0x90)
+
+syscall stubs
+
+6. Thread start = LoadLibrary / suspicious APIs
+
+Check if thread starts at:
+
+LoadLibraryA/W
+
+LdrLoadDll
+
+ Classic injection
+
+ LEVEL 3 → Behavior correlation (THIS MAKES IT EDR)
+ 7. Combine signals
+
+Instead of:
+
+1 condition = alert
+
+Do:
+
+Score system:
++1 RWX
++1 MEM_PRIVATE
++1 not in module
++1 thread start inside region
+
+Score ≥ 3 → MALICIOUS
+
+👉 This is how real EDRs reduce false positives
+
+🔥 8. Process reputation
+
+Add:
+
+Process name
+
+Path
+
+Flag:
+
+explorer.exe → normal
+random.exe in temp → suspicious
+ 9. Parent-child relationship
+
+Use:
+
+PROCESSENTRY32.th32ParentProcessID
+
+Detect:
+
+Word → spawns cmd → suspicious
+LEVEL 4 → Advanced (THIS IS 🔥)
+10. Detect thread hijacking
+
+Thread start address is legit
+
+BUT instruction pointer (RIP) is different
+
+Hard but powerful
+
+ 11. Hook detection
+
+Check:
+
+ntdll.dll
+
+kernel32.dll
+
+If modified → suspicious
+
+ 12. Syscall monitoring (user-mode trick)
+
+Detect:
+
+direct syscalls bypassing hooks
+
+ 13. Stack inspection
+
+Check:
+
+stack pointing to unknown memory
+
+ LEVEL 5 → Make it professional
+ 14. Logging system
+
+Instead of cout:
+
+JSON logs
+
+Example:
+
+{
+  "pid": 1234,
+  "thread": 5678,
+  "type": "injection",
+  "risk": "high"
+}
+ 15. GUI (optional but impressive)
+
+Show processes
+
+Highlight suspicious ones
+
+ 16. Real-time monitoring
+
+Instead of one-time scan:
+
+Loop every few seconds
+ HIGH-IMPACT FEATURES (if you want to stand out)
+
+-------------------------------------------------------------------------------------------------------------
+Detect process hollowing
+
+Detect reflective DLL injection
+
+Detect APC injection
+
+Detect early-bird injection
+
+🧠 Final roadmap (clean)
+✔ Core (you already did)
+
+Thread enumeration
+
+Memory scanning
+
+Basic detection
+
+➕ Next (do this NOW)
+
+Module mapping
+
+RWX detection
+
+Address outside module detection
+
+➕ Then
+
+PE header scan
+
+Behavior scoring
+
+Process tree analysis
+
+➕ Advanced
+
+Hook detection
+
+Stack inspection
+
+Thread hijack detection
