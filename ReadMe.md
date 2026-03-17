@@ -330,5 +330,7 @@ Developed as part of deep exploration into:
 * Windows Internals
 * Malware Techniques
 * Endpoint Detection & Response (EDR)
-R00K
+
+-----------
+## R00K
 
