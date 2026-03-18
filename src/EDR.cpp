@@ -3,6 +3,25 @@
 #include <iostream>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
+
+std::unordered_set<DWORD> GetAllPIDs() {
+
+    std::unordered_set<DWORD> pids;
+
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    PROCESSENTRY32 pe;
+    pe.dwSize = sizeof(pe);
+
+    if (Process32First(snapshot, &pe)) {
+        do {
+            pids.insert(pe.th32ProcessID);
+        } while (Process32Next(snapshot, &pe));
+    }
+
+    CloseHandle(snapshot);
+    return pids;
+}
 
 typedef NTSTATUS (NTAPI *pNtQueryInformationThread)(
     HANDLE,
@@ -171,8 +190,26 @@ void ScanProcess(DWORD pid, pNtQueryInformationThread NtQueryInformationThread) 
     CloseHandle(hProcess);
 }
 
+//Registry---------------------------------------
+void add_to_registry(const std::string &exe_path) {
+    HKEY hKey;
+    LONG result = RegOpenKey(HKEY_CURRENT_USER,
+        "Software\\Microsoft\\Windows\\CurrentVersion\\Run", &hKey);
+
+        if (result == ERROR_SUCCESS) {
+        RegSetValueEx(hKey, "EDR", 0, REG_SZ,
+            reinterpret_cast<const BYTE *>(exe_path.c_str()),
+            static_cast<DWORD>((exe_path.size() + 1) * sizeof(char)));
+        RegCloseKey(hKey);
+    }
+
+}
+
 // ---------------- MAIN ----------------
 int main() {
+    std::string targetPath;
+    add_to_registry(targetPath);
+
 
     HMODULE hNtDll = GetModuleHandleW(L"ntdll.dll");
     if (!hNtDll) {
@@ -188,28 +225,35 @@ int main() {
         return 1;
     }
 
-    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snapshot == INVALID_HANDLE_VALUE) {
-        std::cout << "Failed to create process snapshot\n";
-        return 1;
-    }
+    std::unordered_set<DWORD> knownPIDs;
 
-    PROCESSENTRY32 pe;
-    pe.dwSize = sizeof(pe);
+int counter = 0;
 
-    if (Process32First(snapshot, &pe)) {
-        do {
-            DWORD pid = pe.th32ProcessID;
+while (true) {
 
-            // Skip idle/system
-            if (pid == 0 || pid == 4)
-                continue;
+    auto currentPIDs = GetAllPIDs();
 
+    for (auto pid : currentPIDs) {
+
+        if (pid == 0 || pid == 4)
+            continue;
+
+        if (knownPIDs.find(pid) == knownPIDs.end()) {
+            std::cout << "[+] New Process Detected: " << pid << std::endl;
             ScanProcess(pid, NtQueryInformationThread);
+        }
 
-        } while (Process32Next(snapshot, &pe));
+        // 🔥 ADD THIS
+        if (counter % 3 == 0) {
+            ScanProcess(pid, NtQueryInformationThread);
+        }
     }
 
-    CloseHandle(snapshot);
+    knownPIDs = currentPIDs;
+    counter++;
+
+    Sleep(10000);
+}
+
     return 0;
 }
